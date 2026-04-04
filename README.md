@@ -92,8 +92,8 @@ streamlit run app.py
 
 ## 👨‍💻 Contributors
 
-* Your Name
-* Your Partner's Name
+* Piyush Singh Jimiwal
+* Daksh Mishra 
 
 ---
 
