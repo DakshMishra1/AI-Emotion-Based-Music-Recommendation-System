@@ -1,0 +1,37 @@
+# Emotion-Based Music Recommendation System
+# ML Backend - Requirements (Python 3.13 Compatible)
+
+# Core ML Libraries
+numpy>=1.26.0
+pandas>=2.1.0
+scikit-learn>=1.4.0
+
+# NLP Libraries
+nltk>=3.8.1
+
+# Data Visualization
+matplotlib>=3.8.0
+seaborn>=0.13.0
+plotly>=5.17.0
+
+# Web Framework (for API)
+Flask>=3.0.0
+Flask-CORS>=4.0.0
+
+# Database
+SQLAlchemy>=2.0.20
+python-dotenv>=1.0.0
+
+# API Integration
+requests>=2.31.0
+spotipy>=2.22.1
+
+# Utilities
+python-dateutil>=2.8.2
+pytz>=2023.3
+
+# Optional: For production deployment
+gunicorn>=21.2.0
+
+# Optional: For API documentation
+flask-swagger-ui>=4.11.1
