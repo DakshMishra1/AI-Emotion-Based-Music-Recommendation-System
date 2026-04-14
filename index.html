@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>MoodTune — Emotion-Based Music</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet" />
+<style>
+  /* ── Reset & Base ── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --surface2: #1a1a26;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.12);
+    --text: #f0eff6;
+    --muted: #7c7b8a;
+    --accent: #c084fc;
+    --accent2: #818cf8;
+    --happy:   #fbbf24;
+    --sad:     #60a5fa;
+    --anxious: #f472b6;
+    --angry:   #f87171;
+    --calm:    #34d399;
+    --excited: #a78bfa;
+    --neutral: #94a3b8;
+    --font-display: 'Syne', sans-serif;
+    --font-body: 'DM Sans', sans-serif;
+    --radius: 16px;
+    --radius-sm: 10px;
+  }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: var(--font-body);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Noise grain overlay ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.4;
+  }
+
+  /* ── Layout ── */
+  .app { position: relative; z-index: 1; max-width: 900px; margin: 0 auto; padding: 0 24px 80px; }
+
+  /* ── Nav ── */
+  nav {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 24px 0 40px;
+  }
+  .logo {
+    font-family: var(--font-display);
+    font-size: 22px; font-weight: 800;
+    letter-spacing: -0.5px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .nav-links { display: flex; gap: 8px; }
+  .nav-btn {
+    background: none; border: 1px solid var(--border2);
+    border-radius: 99px; padding: 7px 18px;
+    font-family: var(--font-body); font-size: 13px; font-weight: 500;
+    color: var(--muted); cursor: pointer; transition: all 0.2s;
+  }
+  .nav-btn:hover, .nav-btn.active { color: var(--text); border-color: var(--accent); background: rgba(192,132,252,0.08); }
+
+  /* ── Hero ── */
+  .hero {
+    text-align: center; padding: 20px 0 48px;
+    animation: fadeUp 0.7s ease both;
+  }
+  .hero-eyebrow {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(192,132,252,0.1); border: 1px solid rgba(192,132,252,0.2);
+    border-radius: 99px; padding: 5px 14px;
+    font-size: 12px; font-weight: 500; color: var(--accent);
+    letter-spacing: 0.04em; text-transform: uppercase;
+    margin-bottom: 20px;
+  }
+  .pulse-dot {
+    width: 6px; height: 6px; border-radius: 50%; background: var(--accent);
+    animation: pulse 1.8s ease infinite;
+  }
+  .hero h1 {
+    font-family: var(--font-display); font-size: clamp(36px, 6vw, 64px);
+    font-weight: 800; line-height: 1.05; letter-spacing: -2px;
+    color: var(--text); margin-bottom: 16px;
+  }
+  .hero h1 em { font-style: normal; color: var(--accent); }
+  .hero p { font-size: 17px; color: var(--muted); max-width: 480px; margin: 0 auto; line-height: 1.65; }
+
+  /* ── Input Card ── */
+  .input-card {
+    background: var(--surface); border: 1px solid var(--border2);
+    border-radius: var(--radius); padding: 28px;
+    margin-bottom: 24px;
+    animation: fadeUp 0.7s 0.15s ease both;
+  }
+  .input-label {
+    font-size: 12px; font-weight: 500; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--muted); margin-bottom: 12px;
+    display: block;
+  }
+  .mood-textarea {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 14px 16px;
+    font-family: var(--font-body); font-size: 16px; color: var(--text);
+    resize: none; outline: none; transition: border-color 0.2s;
+    line-height: 1.6;
+  }
+  .mood-textarea::placeholder { color: var(--muted); }
+  .mood-textarea:focus { border-color: rgba(192,132,252,0.4); }
+  .input-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 14px; gap: 12px; flex-wrap: wrap; }
+  .char-count { font-size: 12px; color: var(--muted); }
+  .analyze-btn {
+    display: flex; align-items: center; gap: 10px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none; border-radius: 99px;
+    padding: 12px 28px; font-family: var(--font-display);
+    font-size: 15px; font-weight: 700; color: #fff;
+    cursor: pointer; transition: all 0.2s; letter-spacing: -0.2px;
+  }
+  .analyze-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(192,132,252,0.3); }
+  .analyze-btn:active { transform: translateY(0); }
+  .analyze-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+  .btn-icon { font-size: 16px; }
+
+  /* ── Emotion Chips (quick select) ── */
+  .quick-title { font-size: 12px; color: var(--muted); font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 10px; }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 28px; }
+  .chip {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--surface); border: 1px solid var(--border2);
+    border-radius: 99px; padding: 6px 14px;
+    font-size: 13px; font-weight: 500; cursor: pointer;
+    transition: all 0.15s; color: var(--muted);
+  }
+  .chip:hover { color: var(--text); border-color: var(--border2); background: var(--surface2); }
+  .chip-dot { width: 7px; height: 7px; border-radius: 50%; }
+
+  /* ── Loading ── */
+  .loading-bar {
+    height: 2px; background: var(--surface2); border-radius: 1px;
+    overflow: hidden; margin: 20px 0; display: none;
+  }
+  .loading-bar.active { display: block; }
+  .loading-fill {
+    height: 100%; width: 0%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    border-radius: 1px; animation: loading 1.8s ease infinite;
+  }
+
+  /* ── Result Sections ── */
+  .results { display: none; }
+  .results.visible { display: block; animation: fadeUp 0.5s ease both; }
+  .section { margin-bottom: 20px; }
+  .section-head {
+    font-family: var(--font-display); font-size: 13px; font-weight: 700;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 14px;
+  }
+
+  /* ── Emotion Card ── */
+  .emotion-display {
+    background: var(--surface); border: 1px solid var(--border2);
+    border-radius: var(--radius); padding: 24px;
+    display: flex; align-items: center; gap: 24px; flex-wrap: wrap;
+  }
+  .emotion-orb {
+    width: 72px; height: 72px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px; flex-shrink: 0;
+    position: relative; overflow: hidden;
+  }
+  .emotion-orb::after {
+    content: ''; position: absolute; inset: 0;
+    background: inherit; filter: blur(20px) saturate(2);
+    z-index: -1; transform: scale(2);
+  }
+  .emotion-meta { flex: 1; min-width: 160px; }
+  .emotion-name {
+    font-family: var(--font-display); font-size: 28px; font-weight: 800;
+    letter-spacing: -1px; text-transform: capitalize;
+  }
+  .emotion-sub { font-size: 14px; color: var(--muted); margin-top: 4px; }
+  .confidence-badge {
+    background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 8px 14px; text-align: center;
+  }
+  .confidence-val { font-family: var(--font-display); font-size: 22px; font-weight: 700; }
+  .confidence-label { font-size: 11px; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; margin-top: 2px; }
+  .score-bars { flex-basis: 100%; display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+  .score-row { display: flex; align-items: center; gap: 10px; }
+  .score-emotion { font-size: 13px; color: var(--muted); text-transform: capitalize; width: 70px; }
+  .score-track { flex: 1; height: 4px; background: var(--surface2); border-radius: 2px; overflow: hidden; }
+  .score-fill { height: 100%; border-radius: 2px; transition: width 0.8s cubic-bezier(.34,1.4,.64,1); }
+  .score-pct { font-size: 12px; color: var(--muted); width: 34px; text-align: right; }
+
+  /* ── Song List ── */
+  .songs-card {
+    background: var(--surface); border: 1px solid var(--border2);
+    border-radius: var(--radius); overflow: hidden;
+  }
+  .songs-header {
+    padding: 18px 22px 14px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .songs-title { font-family: var(--font-display); font-size: 16px; font-weight: 700; }
+  .spotify-badge {
+    display: flex; align-items: center; gap: 6px;
+    background: rgba(255,0,0,0.1); border: 1px solid rgba(255,0,0,0.25);
+    border-radius: 99px; padding: 4px 12px;
+    font-size: 12px; font-weight: 500; color: #ff4444;
+  }
+  .song-row {
+    display: flex; align-items: center; gap: 14px;
+    padding: 12px 22px; border-bottom: 1px solid var(--border);
+    transition: background 0.15s; cursor: pointer;
+  }
+  .song-row:last-child { border-bottom: none; }
+  .song-row:hover { background: var(--surface2); }
+  .song-num { font-size: 13px; color: var(--muted); width: 20px; text-align: center; flex-shrink: 0; font-family: var(--font-display); }
+  .song-art {
+    width: 44px; height: 44px; border-radius: 8px;
+    background: var(--surface2); flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; border: 1px solid var(--border);
+  }
+  .song-img { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; }
+  .song-info { flex: 1; min-width: 0; }
+  .song-name { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .song-artist { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .song-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+  .song-duration { font-size: 12px; color: var(--muted); font-family: var(--font-display); }
+  .song-link {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: rgba(255,0,0,0.1); border: 1px solid rgba(255,0,0,0.25);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; color: #ff4444; text-decoration: none;
+    transition: all 0.15s; flex-shrink: 0;
+  }
+  .song-link:hover { background: rgba(255,0,0,0.2); }
+
+  /* ── AI Suggestion Card ── */
+  .suggestion-card {
+    background: linear-gradient(135deg, rgba(192,132,252,0.06), rgba(129,140,248,0.06));
+    border: 1px solid rgba(192,132,252,0.15);
+    border-radius: var(--radius); padding: 22px;
+  }
+  .suggestion-header { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .ai-icon {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: rgba(192,132,252,0.15); border: 1px solid rgba(192,132,252,0.2);
+    display: flex; align-items: center; justify-content: center; font-size: 14px;
+  }
+  .ai-label { font-family: var(--font-display); font-size: 14px; font-weight: 700; }
+  .suggestion-text { font-size: 15px; color: var(--muted); line-height: 1.7; }
+  .suggestion-list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+  .suggestion-list li { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; color: var(--muted); line-height: 1.6; }
+  .suggestion-list li::before { content: '→'; color: var(--accent); font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+
+  /* ── Mood History ── */
+  .history-section { display: none; }
+  .history-section.active { display: block; animation: fadeUp 0.4s ease both; }
+  .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .stat-box {
+    background: var(--surface); border: 1px solid var(--border2);
+    border-radius: var(--radius-sm); padding: 16px;
+  }
+  .stat-val { font-family: var(--font-display); font-size: 24px; font-weight: 800; }
+  .stat-label { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .history-list { background: var(--surface); border: 1px solid var(--border2); border-radius: var(--radius); overflow: hidden; }
+  .history-entry {
+    display: flex; align-items: flex-start; gap: 14px;
+    padding: 14px 20px; border-bottom: 1px solid var(--border);
+    transition: background 0.15s;
+  }
+  .history-entry:last-child { border-bottom: none; }
+  .history-entry:hover { background: var(--surface2); }
+  .h-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; margin-top: 5px; }
+  .h-meta { flex: 1; min-width: 0; }
+  .h-text { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .h-time { font-size: 12px; color: var(--muted); margin-top: 3px; }
+  .h-emotion { font-size: 12px; font-weight: 600; text-transform: capitalize; flex-shrink: 0; font-family: var(--font-display); }
+
+  /* ── Mood Chart ── */
+  .chart-card { background: var(--surface); border: 1px solid var(--border2); border-radius: var(--radius); padding: 22px; margin-bottom: 20px; }
+  .chart-title { font-family: var(--font-display); font-size: 14px; font-weight: 700; margin-bottom: 20px; }
+  .bar-chart { display: flex; align-items: flex-end; gap: 8px; height: 100px; }
+  .bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; }
+  .bar-fill { width: 100%; border-radius: 4px 4px 0 0; min-height: 4px; transition: height 0.6s cubic-bezier(.34,1.4,.64,1); }
+  .bar-spacer { flex: 1; }
+  .bar-label { font-size: 11px; color: var(--muted); }
+
+  /* ── API Page ── */
+  .api-section { display: none; }
+  .api-section.active { display: block; animation: fadeUp 0.4s ease both; }
+  .api-card { background: var(--surface); border: 1px solid var(--border2); border-radius: var(--radius); margin-bottom: 16px; overflow: hidden; }
+  .api-card-head { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; }
+  .method-badge {
+    font-family: var(--font-display); font-size: 11px; font-weight: 800;
+    letter-spacing: 0.08em; border-radius: 6px; padding: 3px 10px;
+  }
+  .method-post { background: rgba(192,132,252,0.15); color: var(--accent); }
+  .method-get  { background: rgba(52,211,153,0.12); color: var(--calm); }
+  .endpoint-path { font-family: monospace; font-size: 14px; color: var(--text); }
+  .endpoint-desc { font-size: 13px; color: var(--muted); margin-left: auto; }
+  .code-block {
+    background: #0d0d14; padding: 16px 20px;
+    font-family: 'Courier New', monospace; font-size: 13px;
+    color: #c4c4d4; line-height: 1.7; overflow-x: auto;
+    white-space: pre;
+  }
+  .code-block .kw  { color: var(--accent); }
+  .code-block .str { color: #86efac; }
+  .code-block .num { color: var(--happy); }
+  .code-block .key { color: var(--accent2); }
+  .copy-btn {
+    background: none; border: 1px solid var(--border2); border-radius: 6px;
+    padding: 4px 12px; font-size: 12px; color: var(--muted);
+    cursor: pointer; transition: all 0.15s; font-family: var(--font-body);
+    margin-left: auto;
+  }
+  .copy-btn:hover { color: var(--text); border-color: var(--border2); background: var(--surface2); }
+
+  /* ── Error Toast ── */
+  .toast {
+    position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: #1f1f2e; border: 1px solid rgba(248,113,113,0.3);
+    border-radius: 99px; padding: 10px 20px;
+    font-size: 14px; color: var(--angry); display: none;
+    z-index: 999; transition: transform 0.3s, opacity 0.3s;
+  }
+  .toast.show { display: block; transform: translateX(-50%) translateY(0); }
+
+  /* ── Setup Banner ── */
+  .setup-banner {
+    background: rgba(251,191,36,0.06); border: 1px solid rgba(251,191,36,0.18);
+    border-radius: var(--radius-sm); padding: 12px 16px; margin-bottom: 20px;
+    display: flex; align-items: flex-start; gap: 10px;
+    font-size: 13px; color: #fcd34d; line-height: 1.6;
+  }
+  .setup-banner strong { font-weight: 600; display: block; margin-bottom: 2px; }
+
+  /* ── Animations ── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%       { opacity: 0.5; transform: scale(0.8); }
+  }
+  @keyframes loading {
+    0%   { width: 0%;   margin-left: 0%; }
+    50%  { width: 60%;  margin-left: 20%; }
+    100% { width: 0%;   margin-left: 100%; }
+  }
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+  .spinner {
+    width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: #fff; border-radius: 50%;
+    animation: spin 0.7s linear infinite; display: none;
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- Nav -->
+  <nav>
+    <div class="logo">MoodTune</div>
+    <div class="nav-links">
+      <button class="nav-btn active" onclick="showSection('home')">Recommend</button>
+      <button class="nav-btn" onclick="showSection('history')">History</button>
+      <button class="nav-btn" onclick="showSection('api')">API</button>
+    </div>
+  </nav>
+
+  <!-- HOME SECTION -->
+  <div id="section-home">
+    <div class="hero">
+      <div class="hero-eyebrow"><div class="pulse-dot"></div> ML + NLP + YouTube</div>
+      <h1>Music that <em>feels</em><br/>what you feel</h1>
+      <p>Type how you're feeling. Our AI detects your emotion and finds the perfect tracks for your mood.</p>
+    </div>
+
+    <!-- Quick chips -->
+    <div class="quick-title">Quick select</div>
+    <div class="chips" id="chips">
+      <div class="chip" onclick="setChip('I feel really happy and energetic today!')">
+        <div class="chip-dot" style="background:var(--happy)"></div> Happy
+      </div>
+      <div class="chip" onclick="setChip('I feel so sad and lonely right now.')">
+        <div class="chip-dot" style="background:var(--sad)"></div> Sad
+      </div>
+      <div class="chip" onclick="setChip('I am really anxious and stressed about everything.')">
+        <div class="chip-dot" style="background:var(--anxious)"></div> Anxious
+      </div>
+      <div class="chip" onclick="setChip('I am so angry and frustrated right now.')">
+        <div class="chip-dot" style="background:var(--angry)"></div> Angry
+      </div>
+      <div class="chip" onclick="setChip('I feel very calm and peaceful today.')">
+        <div class="chip-dot" style="background:var(--calm)"></div> Calm
+      </div>
+      <div class="chip" onclick="setChip('I am super excited and pumped up!')">
+        <div class="chip-dot" style="background:var(--excited)"></div> Excited
+      </div>
+    </div>
+
+    <!-- Input card -->
+    <div class="input-card">
+      <label class="input-label" for="mood-input">Describe your mood</label>
+      <textarea
+        class="mood-textarea" id="mood-input" rows="4"
+        placeholder="e.g. I've been feeling really down lately, missing my friends and can't seem to focus on anything..."></textarea>
+      <div class="input-footer">
+        <span class="char-count" id="char-count">0 / 500</span>
+        <button class="analyze-btn" id="analyze-btn" type="button" onclick="analyze()">
+          <span class="btn-icon">✦</span>
+          <span id="btn-text">Analyze &amp; Recommend</span>
+          <div class="spinner" id="btn-spinner"></div>
+        </button>
+      </div>
+    </div>
+
+    <div class="loading-bar" id="loading-bar"><div class="loading-fill"></div></div>
+
+    <!-- Results -->
+    <div class="results" id="results">
+
+      <!-- Emotion card -->
+      <div class="section">
+        <div class="section-head">Detected emotion</div>
+        <div class="emotion-display">
+          <div class="emotion-orb" id="emotion-orb">😊</div>
+          <div class="emotion-meta">
+            <div class="emotion-name" id="emotion-name">Happy</div>
+            <div class="emotion-sub" id="emotion-sub">Your text radiates positive energy</div>
+          </div>
+          <div class="confidence-badge">
+            <div class="confidence-val" id="confidence-val">92%</div>
+            <div class="confidence-label">Confidence</div>
+          </div>
+          <div class="score-bars" id="score-bars"></div>
+        </div>
+      </div>
+
+      <!-- Songs -->
+      <div class="section">
+        <div class="section-head">Recommended tracks</div>
+        <div class="songs-card">
+          <div class="songs-header">
+            <div class="songs-title" id="songs-title">Songs for your mood</div>
+            <div class="spotify-badge">▶ Open on YouTube</div>
+          </div>
+          <div id="song-list"></div>
+        </div>
+      </div>
+
+      <!-- AI suggestion -->
+      <div class="section">
+        <div class="section-head">AI mood insight</div>
+        <div class="suggestion-card">
+          <div class="suggestion-header">
+            <div class="ai-icon">✦</div>
+            <div class="ai-label">Personalised suggestion</div>
+          </div>
+          <div class="suggestion-text" id="suggestion-text"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- HISTORY SECTION -->
+  <div class="history-section" id="section-history">
+    <div class="stats-row" id="stats-row"></div>
+    <div class="chart-card">
+      <div class="chart-title">Mood this week</div>
+      <div class="bar-chart" id="bar-chart"></div>
+    </div>
+    <div class="section-head">Recent sessions</div>
+    <div class="history-list" id="history-list"></div>
+  </div>
+
+  <!-- API SECTION -->
+  <div class="api-section" id="section-api">
+    <div style="margin-bottom:24px;">
+      <div class="hero-eyebrow" style="display:inline-flex;margin-bottom:12px;">API Reference</div>
+      <h2 style="font-family:var(--font-display);font-size:26px;font-weight:800;letter-spacing:-0.5px;">Connect to your Flask backend</h2>
+      <p style="color:var(--muted);font-size:15px;margin-top:8px;">Your Flask server runs at <code style="color:var(--accent)">http://localhost:5000</code></p>
+    </div>
+
+    <div class="api-card">
+      <div class="api-card-head">
+        <span class="method-badge method-post">POST</span>
+        <span class="endpoint-path">/api/analyze</span>
+        <span class="endpoint-desc">Detect emotion from text</span>
+        <button class="copy-btn" onclick="copyCode('code1')">Copy</button>
+      </div>
+      <div class="code-block" id="code1"><span class="kw">POST</span> http://localhost:5000/api/analyze
+Content-Type: application/json
+
+{
+  <span class="key">"text"</span>: <span class="str">"I feel really anxious today"</span>
+}
+
+<span class="kw">// Response</span>
+{
+  <span class="key">"emotion"</span>:    <span class="str">"anxious"</span>,
+  <span class="key">"confidence"</span>: <span class="num">0.87</span>,
+  <span class="key">"scores"</span>: {
+    <span class="key">"anxious"</span>: <span class="num">0.87</span>, <span class="key">"sad"</span>: <span class="num">0.08</span>, <span class="key">"neutral"</span>: <span class="num">0.05</span>
+  }
+}</div>
+    </div>
+
+    <div class="api-card">
+      <div class="api-card-head">
+        <span class="method-badge method-post">POST</span>
+        <span class="endpoint-path">/api/recommend</span>
+        <span class="endpoint-desc">Fetch Spotify tracks by emotion</span>
+        <button class="copy-btn" onclick="copyCode('code2')">Copy</button>
+      </div>
+      <div class="code-block" id="code2"><span class="kw">POST</span> http://localhost:5000/api/recommend
+Content-Type: application/json
+
+{
+  <span class="key">"emotion"</span>: <span class="str">"happy"</span>,
+  <span class="key">"limit"</span>:   <span class="num">5</span>
+}
+
+<span class="kw">// Response</span>
+{
+  <span class="key">"tracks"</span>: [
+    {
+      <span class="key">"name"</span>:     <span class="str">"Happy"</span>,
+      <span class="key">"artist"</span>:   <span class="str">"Pharrell Williams"</span>,
+      <span class="key">"duration"</span>: <span class="str">"3:53"</span>,
+      <span class="key">"url"</span>:      <span class="str">"https://open.spotify.com/track/..."</span>
+    }
+  ]
+}</div>
+    </div>
+
+    <div class="api-card">
+      <div class="api-card-head">
+        <span class="method-badge method-get">GET</span>
+        <span class="endpoint-path">/api/history</span>
+        <span class="endpoint-desc">Fetch mood history from DB</span>
+        <button class="copy-btn" onclick="copyCode('code3')">Copy</button>
+      </div>
+      <div class="code-block" id="code3"><span class="kw">GET</span> http://localhost:5000/api/history?limit=20
+
+<span class="kw">// Response</span>
+{
+  <span class="key">"history"</span>: [
+    {
+      <span class="key">"id"</span>:        <span class="num">1</span>,
+      <span class="key">"text"</span>:      <span class="str">"I feel anxious..."</span>,
+      <span class="key">"emotion"</span>:   <span class="str">"anxious"</span>,
+      <span class="key">"timestamp"</span>: <span class="str">"2026-04-11T14:22:00"</span>
+    }
+  ]
+}</div>
+    </div>
+
+    <div class="api-card">
+      <div class="api-card-head">
+        <span class="method-badge method-post">POST</span>
+        <span class="endpoint-path">/api/suggestions</span>
+        <span class="endpoint-desc">AI mood improvement tips</span>
+        <button class="copy-btn" onclick="copyCode('code4')">Copy</button>
+      </div>
+      <div class="code-block" id="code4"><span class="kw">POST</span> http://localhost:5000/api/suggestions
+Content-Type: application/json
+
+{
+  <span class="key">"emotion"</span>: <span class="str">"anxious"</span>
+}
+
+<span class="kw">// Response</span>
+{
+  <span class="key">"suggestion"</span>: <span class="str">"Try a 5-minute breathing exercise..."</span>
+}</div>
+    </div>
+
+    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius);padding:20px;margin-top:8px;">
+      <div style="font-family:var(--font-display);font-size:14px;font-weight:700;margin-bottom:12px;">Enable CORS on your Flask server</div>
+      <div class="code-block" style="border-radius:8px;">pip install flask-cors
+
+<span class="kw">from</span> flask_cors <span class="kw">import</span> CORS
+app = Flask(__name__)
+CORS(app)  <span class="kw"># ← Add this after creating app</span></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+/* ─────────────────────────────────────────
+   CONFIG — change this to match your server
+───────────────────────────────────────── */
+const API_BASE = 'http://127.0.0.1:5500';
+
+/* ── Emotion config ── */
+const EMOTION_CONFIG = {
+  happy:   { color: '#fbbf24', emoji: '😊', sub: 'Your text radiates positive energy', label: 'Songs for happy vibes' },
+  sad:     { color: '#60a5fa', emoji: '😢', sub: 'You seem to be feeling down', label: 'Songs for a heavy heart' },
+  anxious: { color: '#f472b6', emoji: '😰', sub: 'You seem stressed or worried', label: 'Music to ease your mind' },
+  angry:   { color: '#f87171', emoji: '😤', sub: 'You sound frustrated or upset', label: 'Songs to release tension' },
+  calm:    { color: '#34d399', emoji: '😌', sub: 'You are in a peaceful state', label: 'Songs for your serene mood' },
+  excited: { color: '#a78bfa', emoji: '🤩', sub: 'You are energised and pumped!', label: 'High-energy tracks for you' },
+  neutral: { color: '#94a3b8', emoji: '😐', sub: 'Neutral state detected', label: 'Mixed mood playlist' },
+};
+
+/* ── Fallback data (used if API is offline) ── */
+const FALLBACK = {
+  happy: {
+    emotion:'happy', confidence:0.91,
+    scores:{ happy:0.91, excited:0.06, neutral:0.03 },
+    tracks:[
+      { name:'Happy', artist:'Pharrell Williams', duration:'3:53', url:'https://open.spotify.com/track/60nZcImufyMA1MKQY3dcCH' },
+      { name:'Good as Hell', artist:'Lizzo', duration:'2:39', url:'https://open.spotify.com/track/6KgBpzTuTRPebChN0VTyzV' },
+      { name:"Can't Stop the Feeling!", artist:'Justin Timberlake', duration:'3:56', url:'https://open.spotify.com/track/6KuQTIu1KoTTkLXKrwlLPV' },
+      { name:'Uptown Funk', artist:'Bruno Mars', duration:'4:30', url:'https://open.spotify.com/track/32OlwWuMpZ6b0aN2RZOeMS' },
+      { name:'Walking on Sunshine', artist:'Katrina & The Waves', duration:'3:58', url:'' },
+    ],
+    suggestion: 'Your positive energy is a gift! Channel it into something creative today — music, art, or reaching out to someone you care about. Staying active will help you ride this wave even longer.'
+  },
+  sad: {
+    emotion:'sad', confidence:0.84,
+    scores:{ sad:0.84, anxious:0.1, neutral:0.06 },
+    tracks:[
+      { name:'The Night We Met', artist:'Lord Huron', duration:'3:28', url:'' },
+      { name:'Skinny Love', artist:'Bon Iver', duration:'3:58', url:'' },
+      { name:'Someone Like You', artist:'Adele', duration:'4:45', url:'' },
+      { name:'Fix You', artist:'Coldplay', duration:'4:55', url:'' },
+      { name:'Mad World', artist:'Gary Jules', duration:'3:08', url:'' },
+    ],
+    suggestion: "It's okay to feel sad — allowing yourself to sit with these emotions is healthy. Try journaling your thoughts, talking to someone you trust, or simply letting the music hold space for you. This feeling is temporary."
+  },
+  anxious: {
+    emotion:'anxious', confidence:0.87,
+    scores:{ anxious:0.87, sad:0.08, neutral:0.05 },
+    tracks:[
+      { name:'Breathe (2 AM)', artist:'Anna Nalick', duration:'4:03', url:'' },
+      { name:'Weightless', artist:'Marconi Union', duration:'8:09', url:'' },
+      { name:'The Scientist', artist:'Coldplay', duration:'5:09', url:'' },
+      { name:'Holocene', artist:'Bon Iver', duration:'5:37', url:'' },
+      { name:'Atlas Hands', artist:'Benjamin Francis Leftwich', duration:'4:03', url:'' },
+    ],
+    suggestion: 'Try the 4-7-8 breathing technique: inhale for 4 counts, hold for 7, exhale for 8. Do this 3 times while listening to the first track. Externalising worries by writing them down can also reduce their power over you.'
+  },
+  angry: {
+    emotion:'angry', confidence:0.88,
+    scores:{ angry:0.88, anxious:0.07, sad:0.05 },
+    tracks:[
+      { name:'Break Stuff', artist:'Limp Bizkit', duration:'2:46', url:'' },
+      { name:'Given Up', artist:'Linkin Park', duration:'3:08', url:'' },
+      { name:'Killing in the Name', artist:'Rage Against the Machine', duration:'5:13', url:'' },
+      { name:'Figure.09', artist:'Linkin Park', duration:'3:17', url:'' },
+      { name:'Cochise', artist:'Audioslave', duration:'3:44', url:'' },
+    ],
+    suggestion: 'Physical movement is the fastest way to discharge anger — go for a brisk walk or do some push-ups. Step away from whatever triggered this feeling for at least 10 minutes before responding.'
+  },
+  calm: {
+    emotion:'calm', confidence:0.9,
+    scores:{ calm:0.9, neutral:0.07, happy:0.03 },
+    tracks:[
+      { name:'Weightless', artist:'Marconi Union', duration:'8:09', url:'' },
+      { name:'Gymnopédie No.1', artist:'Erik Satie', duration:'3:00', url:'' },
+      { name:'Clair de Lune', artist:'Debussy', duration:'4:53', url:'' },
+      { name:'River Flows in You', artist:'Yiruma', duration:'3:50', url:'' },
+      { name:'Experience', artist:'Ludovico Einaudi', duration:'5:13', url:'' },
+    ],
+    suggestion: 'Your calm state is precious — protect it. This is an ideal time for deep focus work, meditation, or planning. Consider a 5-minute mindfulness session to deepen this tranquil state.'
+  },
+  excited: {
+    emotion:'excited', confidence:0.93,
+    scores:{ excited:0.93, happy:0.05, neutral:0.02 },
+    tracks:[
+      { name:'Blinding Lights', artist:'The Weeknd', duration:'3:20', url:'' },
+      { name:"Can't Hold Us", artist:'Macklemore & Ryan Lewis', duration:'4:18', url:'' },
+      { name:'Levels', artist:'Avicii', duration:'3:18', url:'' },
+      { name:'Eye of the Tiger', artist:'Survivor', duration:'4:05', url:'' },
+      { name:'Lose Yourself', artist:'Eminem', duration:'5:26', url:'' },
+    ],
+    suggestion: 'Ride this energy wave into something you\'ve been putting off! Be mindful of over-committing in this excited state. Great time for brainstorming, creative sprints, or physical activity.'
+  },
+};
+
+/* ── State ── */
+let currentEmotion = null;
+
+/* ── DOM helpers ── */
+const $ = id => document.getElementById(id);
+const showToast = (msg, dur = 3500) => {
+  const t = $('toast'); t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), dur);
+};
+
+/* ── Char count ── */
+$('mood-input').addEventListener('input', function() {
+  const l = this.value.length;
+  $('char-count').textContent = l + ' / 500';
+  if (l > 500) this.value = this.value.slice(0, 500);
+});
+
+/* ── Quick chips ── */
+function setChip(text) {
+  $('mood-input').value = text;
+  $('char-count').textContent = text.length + ' / 500';
+}
+
+/* ── Section switcher ── */
+function showSection(name) {
+  ['home','history','api'].forEach(s => {
+    $('section-' + s).style.display = 'none';
+    $('section-' + s).classList.remove('active');
+  });
+  const el = $('section-' + name);
+  el.style.display = 'block';
+  el.classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach((b, i) => {
+    b.classList.toggle('active', ['home','history','api'][i] === name);
+  });
+  if (name === 'history') loadHistory();
+}
+
+/* ── Analyze ── */
+async function analyze() {
+  const text = $('mood-input').value.trim();
+  if (!text) { showToast('Please describe how you are feeling first.'); return; }
+
+  setLoading(true);
+  $('results').classList.remove('visible');
+
+  try {
+    // 1. Analyze emotion
+    let emotion, confidence, scores, tracks, suggestion;
+    try {
+      const r1 = await fetch(API_BASE + '/api/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text })
+      });
+      const d1 = await r1.json();
+      emotion    = d1.emotion;
+      confidence = d1.confidence;
+      scores     = d1.scores;
+    } catch(_) {
+      // Fallback: detect locally if server is offline
+      const fb = detectFallback(text);
+      emotion    = fb.emotion;
+      confidence = fb.confidence;
+      scores     = fb.scores;
+      tracks     = fb.tracks;
+      suggestion = fb.suggestion;
+      showToast('Backend offline — using local demo data');
+    }
+
+    // 2. Get recommendations (if server is up)
+    if (!tracks) {
+      try {
+        const r2 = await fetch(API_BASE + '/api/recommend', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ emotion, limit: 5 })
+        });
+        const d2 = await r2.json();
+        tracks = d2.tracks || [];
+      } catch(_) {
+        tracks = (FALLBACK[emotion] || FALLBACK.happy).tracks;
+      }
+    }
+
+    // 3. Get AI suggestion
+    if (!suggestion) {
+      try {
+        const r3 = await fetch(API_BASE + '/api/suggestions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ emotion })
+        });
+        const d3 = await r3.json();
+        suggestion = d3.suggestion || d3.text || '';
+      } catch(_) {
+        suggestion = (FALLBACK[emotion] || FALLBACK.calm).suggestion;
+      }
+    }
+
+    renderResults({ emotion, confidence, scores, tracks, suggestion });
+    currentEmotion = emotion;
+
+  } catch(err) {
+    showToast('Something went wrong. Please try again.');
+    console.error(err);
+  } finally {
+    setLoading(false);
+  }
+}
+
+function detectFallback(text) {
+  const t = text.toLowerCase();
+  if (/happy|joy|great|wonderful|amazing|love|fantastic|good/.test(t)) return FALLBACK.happy;
+  if (/sad|depress|cry|lonely|miss|grief|heartbreak|down|blue/.test(t)) return FALLBACK.sad;
+  if (/anxi|worry|stress|nervous|panic|fear|scare|overwhelm/.test(t)) return FALLBACK.anxious;
+  if (/angry|mad|furious|rage|hate|frustrat|irritat/.test(t)) return FALLBACK.angry;
+  if (/calm|peace|relax|tranquil|serene|still|quiet/.test(t)) return FALLBACK.calm;
+  if (/excit|pumped|energetic|hyped|motivat|thrill/.test(t)) return FALLBACK.excited;
+  return FALLBACK.calm;
+}
+
+function setLoading(on) {
+  const btn = $('analyze-btn');
+  $('btn-text').textContent = on ? 'Analyzing...' : 'Analyze & Recommend';
+  $('btn-spinner').style.display = on ? 'block' : 'none';
+  btn.disabled = on;
+  $('loading-bar').classList.toggle('active', on);
+}
+
+function renderResults({ emotion, confidence, scores, tracks, suggestion }) {
+  const cfg = EMOTION_CONFIG[emotion] || EMOTION_CONFIG.neutral;
+
+  // Orb
+  $('emotion-orb').textContent = cfg.emoji;
+  $('emotion-orb').style.background = cfg.color + '22';
+  $('emotion-orb').style.border = '1px solid ' + cfg.color + '44';
+  $('emotion-name').textContent = emotion.charAt(0).toUpperCase() + emotion.slice(1);
+  $('emotion-name').style.color = cfg.color;
+  $('emotion-sub').textContent = cfg.sub;
+  $('confidence-val').textContent = Math.round(confidence * 100) + '%';
+  $('confidence-val').style.color = cfg.color;
+
+  // Score bars
+  const barsEl = $('score-bars');
+  if (scores && Object.keys(scores).length) {
+    barsEl.innerHTML = Object.entries(scores)
+      .sort((a,b) => b[1]-a[1]).slice(0,4)
+      .map(([emo, val]) => {
+        const c2 = EMOTION_CONFIG[emo] || EMOTION_CONFIG.neutral;
+        const pct = Math.round(val * 100);
+        return `<div class="score-row">
+          <span class="score-emotion">${emo}</span>
+          <div class="score-track"><div class="score-fill" style="width:${pct}%;background:${c2.color};"></div></div>
+          <span class="score-pct">${pct}%</span>
+        </div>`;
+      }).join('');
+  } else { barsEl.innerHTML = ''; }
+
+  // Songs — YouTube search links (free, no premium needed)
+  $('songs-title').textContent = cfg.label;
+  $('song-list').innerHTML = tracks.map((t, i) => {
+    const name   = t.name || t.title || 'Unknown';
+    const artist = t.artist || t.artists || '';
+    const ytQuery = encodeURIComponent(name + ' ' + artist + ' official audio');
+    const ytUrl   = 'https://www.youtube.com/results?search_query=' + ytQuery;
+    return `
+    <div class="song-row" onclick="window.open('${ytUrl}','_blank')" style="cursor:pointer;">
+      <span class="song-num">${i+1}</span>
+      <div class="song-art">${cfg.emoji}</div>
+      <div class="song-info">
+        <div class="song-name">${name}</div>
+        <div class="song-artist">${artist}</div>
+      </div>
+      <div class="song-right">
+        <span class="song-duration">${t.duration || ''}</span>
+        <span class="song-link">▶</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Suggestion
+  $('suggestion-text').textContent = suggestion || 'Take care of yourself today.';
+
+  $('results').classList.add('visible');
+  $('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+/* ── History ── */
+async function loadHistory() {
+  try {
+    const r = await fetch(API_BASE + '/api/history?limit=20');
+    const d = await r.json();
+    renderHistory(d.history || []);
+  } catch(_) {
+    renderHistory([]); // show empty state
+  }
+}
+
+function renderHistory(history) {
+  // Stats
+  const counts = {};
+  history.forEach(h => { counts[h.emotion] = (counts[h.emotion]||0) + 1; });
+  const topEmotion = Object.entries(counts).sort((a,b)=>b[1]-a[1])[0]?.[0] || '—';
+  $('stats-row').innerHTML = [
+    { val: history.length, label: 'Sessions' },
+    { val: topEmotion.charAt(0).toUpperCase() + topEmotion.slice(1) || '—', label: 'Top mood' },
+    { val: history.length * 5, label: 'Songs played' }
+  ].map(s => `<div class="stat-box"><div class="stat-val">${s.val}</div><div class="stat-label">${s.label}</div></div>`).join('');
+
+  // Bar chart (last 7 entries)
+  const last7 = history.slice(-7);
+  const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  if (last7.length) {
+    $('bar-chart').innerHTML = last7.map(h => {
+      const cfg = EMOTION_CONFIG[h.emotion] || EMOTION_CONFIG.neutral;
+      const d = new Date(h.timestamp);
+      return `<div class="bar-col">
+        <div class="bar-spacer"></div>
+        <div class="bar-fill" style="height:${40+Math.random()*50}px;background:${cfg.color};opacity:0.8;"></div>
+        <span class="bar-label">${days[d.getDay()]||'?'}</span>
+      </div>`;
+    }).join('');
+  } else {
+    $('bar-chart').innerHTML = '<div style="color:var(--muted);font-size:13px;margin:auto;">No data yet — analyze your mood first</div>';
+  }
+
+  // List
+  if (history.length === 0) {
+    $('history-list').innerHTML = '<div style="padding:24px;text-align:center;color:var(--muted);font-size:14px;">No sessions yet. Go analyze your mood!</div>';
+    return;
+  }
+  $('history-list').innerHTML = history.slice().reverse().map(h => {
+    const cfg = EMOTION_CONFIG[h.emotion] || EMOTION_CONFIG.neutral;
+    const date = h.timestamp ? new Date(h.timestamp).toLocaleString() : 'Unknown time';
+    return `<div class="history-entry">
+      <div class="h-dot" style="background:${cfg.color};"></div>
+      <div class="h-meta">
+        <div class="h-text">${h.text || '—'}</div>
+        <div class="h-time">${date}</div>
+      </div>
+      <div class="h-emotion" style="color:${cfg.color};">${h.emotion}</div>
+    </div>`;
+  }).join('');
+}
+
+/* ── Copy code ── */
+function copyCode(id) {
+  const text = $(id).innerText;
+  navigator.clipboard.writeText(text).then(() => showToast('Copied to clipboard!', 2000));
+}
+
+/* ── Init ── */
+showSection('home');
+</script>
+</body>
+</html>
