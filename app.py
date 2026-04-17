@@ -15,8 +15,8 @@ from flask_cors import CORS
 # ─────────────────────────────────────────────────────────────────────
 #  CONFIG
 # ─────────────────────────────────────────────────────────────────────
-SPOTIFY_CLIENT_ID     = "c37dde5163e94cb99451a98c936a1b78"
-SPOTIFY_CLIENT_SECRET = "033482a842e14c30b911b8cbd94cedb9"
+SPOTIFY_CLIENT_ID     = "Your Key"
+SPOTIFY_CLIENT_SECRET = "Your Secret Id"
 
 # ── Your model uses EXACTLY these 4 labels (from dataset.csv) ──
 # joy | sadness | anger | fear
